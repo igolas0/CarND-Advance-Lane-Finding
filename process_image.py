@@ -154,6 +154,30 @@ for file in dirs:
         color_binary = color_threshold(image, v_thresh=(150,255), s_thresh=(100,255))
         preprocess_img = np.zeros_like(gradx)
         preprocess_img[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1)) | (color_binary == 1)] = 255 
-        result = preprocess_img
+
+        #define are for prespective transform
+        img_size = (image.shape[1], image.shape[0])
+        bot_width = .76 #percent of bottom trapizoid height
+        mid_width = .08 #percent of middle trapizoid height
+        height_pct = .62 #percent for trapizoid height
+        bottom_trim = .935 # percent from top (bottom of img) to avoid hood)
+        src = np.float32([[image.shape[1]*(.5-mid_width/2),image.shape[0]*height_pct],
+                          [image.shape[1]*(.5+mid_width/2),image.shape[0]*height_pct],
+                          [image.shape[1]*(.5+bot_width/2),image.shape[0]*bottom_trim],
+                          [image.shape[1]*(.5-bot_width/2),image.shape[0]*bottom_trim]])
+        offset = img_size[0]*0.15
+        dst = np.float32([[offset, 0], [img_size[0]-offset, 0],
+                          [img_size[0]-offset, img_size[1]], 
+                          [offset, img_size[1]]])  
+
+        #use cv2.getPerspectiveTransform() to get M, the transform matrix
+        M = cv2.getPerspectiveTransform(src, dst)
+        #use cv2.getPerspectiveTransform() to get inverse of M, the inverse of the transform matrix
+        Minv = cv2.getPerspectiveTransform(dst, src)
+        #use cv2.warpPerspective() to warp your image to a top-down view
+        warped = cv2.warpPerspective(preprocess_img, M, img_size,flags=cv2.INTER_LINEAR)
+
+        result = warped
+
         write_name = './test_images/result_'+file
         cv2.imwrite(write_name, result) 
