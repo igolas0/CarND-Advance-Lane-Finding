@@ -6,23 +6,6 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 #%matplotlib inline
 
-# Read in the saved camera matrix and distortion coefficients saved in pickle file
-dist_pickle = pickle.load( open("./camera_cal/dist_pickle.p", "rb" ))
-mtx = dist_pickle["mtx"]
-dist = dist_pickle["dist"]
-
-dirs = os.listdir("test_images/")
-str1 = './test_images/'
-str2 = 'result_'
-
-for file in dirs:
-    if file[0:7] != str2:
-
-        image = cv2.imread(str1+file)
-        result = cv2.undistort(image, mtx, dist, None, mtx)
-
-        write_name = './test_images/result_'+file
-        cv2.imwrite(write_name, result) 
 
 def abs_sobel_thresh(img, orient='x', sobel_kernel=3, thresh=(10, 255)):
     
@@ -144,3 +127,33 @@ def pipeline_test(img, s_thresh=(100, 255), v_thresh=(50, 255), mag_tr=(50, 255)
     
       
     return combined
+
+
+# Read in the saved camera matrix and distortion coefficients saved in pickle file
+dist_pickle = pickle.load( open("./camera_cal/dist_pickle.p", "rb" ))
+mtx = dist_pickle["mtx"]
+dist = dist_pickle["dist"]
+
+dirs = os.listdir("test_images/")
+str1 = './test_images/'
+str2 = 'result_'
+
+for file in dirs:
+    if file[0:7] != str2:
+
+        image = cv2.imread(str1+file)
+        image = cv2.undistort(image, mtx, dist, None, mtx)
+
+        ksize = 3
+        mag_tr = (20,255)
+        #preprocess_img = np.zeros_like(image[:,:,0])
+        gradx = abs_sobel_thresh(image, orient='x', sobel_kernel=ksize,thresh= (12, 255))
+        grady = abs_sobel_thresh(image, orient='y', sobel_kernel=ksize,thresh= (25, 255))
+        mag_binary = mag_thresh(image, sobel_kernel=ksize, mag_thresh=mag_tr)
+        dir_binary = dir_threshold(image, sobel_kernel=ksize, thresh=(0.7, 1.3))
+        color_binary = color_threshold(image, v_thresh=(150,255), s_thresh=(100,255))
+        preprocess_img = np.zeros_like(gradx)
+        preprocess_img[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1)) | (color_binary == 1)] = 255 
+        result = preprocess_img
+        write_name = './test_images/result_'+file
+        cv2.imwrite(write_name, result) 
