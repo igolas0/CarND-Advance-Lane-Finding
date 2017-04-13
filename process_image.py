@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from lane_finding import Line
 #%matplotlib inline
 
 
@@ -104,8 +105,13 @@ def color_threshold(img, s_thresh=(100, 255), v_thresh=(100, 255)):
     combined[(v_channel >= v_thresh[0]) & (v_channel <= v_thresh[1]) 
                                          | (s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
 
-      
     return combined
+
+def window_mask(width, height, img_ref, center,level):
+    output = np.zeros_like(img_ref)
+    output[int(img_ref.shape[0]-(level+1)*height):int(img_ref.shape[0]-level*height),max(0,int(center-width/2)):min(int(center+width/2),img_ref.shape[1])] = 1
+    return output
+
 
 def pipeline_test(img, s_thresh=(100, 255), v_thresh=(50, 255), mag_tr=(50, 255), ksize=3):
     image = np.copy(img)
@@ -176,8 +182,66 @@ for file in dirs:
         Minv = cv2.getPerspectiveTransform(dst, src)
         #use cv2.warpPerspective() to warp your image to a top-down view
         warped = cv2.warpPerspective(preprocess_img, M, img_size,flags=cv2.INTER_LINEAR)
+        window_width = 80
+        window_height = 80
 
-        result = warped
+        #set up overall class for lane finding
+        curve_centers = Line(Mywindow_width = window_width, Mywindow_height = window_height, Mymargin = 25, My_ym = 30/720, My_xm = 3.7/700, Mysmooth_factor = 15)
+        window_centroids = curve_centers.find_window_centroids(warped)
+
+        #points to draw left and right windows
+        l_points = np.zeros_like(warped)
+        r_points = np.zeros_like(warped)
+
+        #points used to find the left and right lanes
+        rightx = []
+        leftx = []
+
+        #iterate over each level and draw windows
+        for level in range(0,len(window_centroids)):
+           #window_mask is a function to draw window areas
+           l_mask = window_mask(window_width,window_height,warped,window_centroids[level][0],level)
+           r_mask = window_mask(window_width,window_height,warped,window_centroids[level][1],level)
+           #add center value in frame to list of lane points per left,right
+           leftx.append(window_centroids[level][0])
+           rightx.append(window_centroids[level][1])
+	   # Add graphic points from window mask here to total pixels found 
+           l_points[(l_points == 255) | ((l_mask == 1) ) ] = 255
+           r_points[(r_points == 255) | ((r_mask == 1) ) ] = 255
+
+        # Draw the results
+        template = np.array(r_points+l_points,np.uint8) # add both left and right window pixels together
+        zero_channel = np.zeros_like(template) # create a zero color channle 
+        template = np.array(cv2.merge((zero_channel,template,zero_channel)),np.uint8) # make window pixels green
+        warpage = np.array(cv2.merge((warped,warped,warped)),np.uint8) # making the original road pixels 3 color channels
+        #result = cv2.addWeighted(warpage, 1, template, 0.5, 0.0) # overlay the orignal road image with window results
+        
+        #fit the lane boundaries to the left,right center positions found
+        yvals = range(0,warped.shape[0])
+
+        res_yvals = np.arange(warped.shape[0]-(window_height/2),0,-window_height)
+
+        left_fit = np.polyfit(res_yvals, leftx, 2)
+        left_fitx = left_fit[0]*yvals*yvals + left_fit[1]*yvals + left_fit[2]
+        left_fitx = np.array(left_fitx,np.int32)
+
+
+        right_fit = np.polyfit(res_yvals, rightx, 2)
+        right_fitx = left_fit[0]*yvals*yvals + right_fit[1]*yvals + right_fit[2]
+        right_fitx = np.array(right_fitx,np.int32)
+
+        left_lane = np.array(list(zip(np.concatenate((left_fitx-window_width/2,left_fitx[::-1]+window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
+        right_lane = np.array(list(zip(np.concatenate((right_fitx-window_width/2,right_fitx[::-1]+window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
+        middle_marker = np.array(list(zip(np.concatenate((right_fitx-window_width/2,right_fitx[::-1]+window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
+
+        road = np.zeros_like(image)
+        road_bkg = np.zeros_like(image)
+        cv2.fillPoly(road,[left_lane],color=[255,0,0]) 
+        cv2.fillPoly(road,[right_lane],color=[0,0,255]) 
+        cv2.fillPoly(road_bkg,[left_lane],color=[255,255,255]) 
+        cv2.fillPoly(road_bkg,[right_lane],color=[255,255,255]) 
+
+        result = road
 
         write_name = './test_images/result_'+file
         cv2.imwrite(write_name, result) 
