@@ -1,3 +1,4 @@
+from moviepy.editor import VideoFileClip
 import os
 import pickle
 import cv2
@@ -6,7 +7,6 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from lane_finding import Line
 #%matplotlib inline
-
 
 def abs_sobel_thresh(img, orient='x', sobel_kernel=3, thresh=(10, 255)):
     
@@ -113,28 +113,6 @@ def window_mask(width, height, img_ref, center,level):
     return output
 
 
-def pipeline_test(img, s_thresh=(100, 255), v_thresh=(50, 255), mag_tr=(50, 255), ksize=3):
-    image = np.copy(img)
-    # Convert to HSV color space and separate the V channel
-    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
-    h_channel = hls[:,:,0]
-    l_channel = hls[:,:,1]
-    s_channel = hls[:,:,2]
-    red_channel = image[:,:,0]
-    
-    gradx = abs_sobel_thresh(image, orient='x', sobel_kernel=ksize, thresh=thresh)
-    grady = abs_sobel_thresh(image, orient='y', sobel_kernel=ksize,thresh=thresh)
-    mag_binary = mag_thresh(image, sobel_kernel=ksize, mag_thresh=mag_tr)
-    dir_binary = dir_threshold(image, sobel_kernel=ksize, thresh=(0.7, 1.3))
-      
-    combined = np.zeros_like(gradx)
-    combined[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1))
-                                           | (s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
-    
-      
-    return combined
-
-
 # Read in the saved camera matrix and distortion coefficients saved in pickle file
 dist_pickle = pickle.load( open("./camera_cal/dist_pickle.p", "rb" ))
 mtx = dist_pickle["mtx"]
@@ -144,10 +122,9 @@ dirs = os.listdir("test_images/")
 str1 = './test_images/'
 str2 = 'result_'
 
-for file in dirs:
-    if file[0:7] != str2:
+def process_img(image):
 
-        image = cv2.imread(str1+file)
+        #image = cv2.imread(str1+file)
         image = cv2.undistort(image, mtx, dist, None, mtx)
 
         ksize = 3
@@ -233,11 +210,14 @@ for file in dirs:
         left_lane = np.array(list(zip(np.concatenate((left_fitx-window_width/2,left_fitx[::-1]+window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
         right_lane = np.array(list(zip(np.concatenate((right_fitx-window_width/2,right_fitx[::-1]+window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
         middle_marker = np.array(list(zip(np.concatenate((right_fitx-window_width/2,right_fitx[::-1]+window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
+        inner_lane = np.array(list(zip(np.concatenate((left_fitx+window_width/2,right_fitx[::-1]-window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
+
 
         road = np.zeros_like(image)
         road_bkg = np.zeros_like(image)
         cv2.fillPoly(road,[left_lane],color=[255,0,0]) 
         cv2.fillPoly(road,[right_lane],color=[0,0,255]) 
+        cv2.fillPoly(road,[inner_lane],color=[0,255,0]) 
         cv2.fillPoly(road_bkg,[left_lane],color=[255,255,255]) 
         cv2.fillPoly(road_bkg,[right_lane],color=[255,255,255]) 
 
@@ -246,7 +226,7 @@ for file in dirs:
         road_warped = cv2.warpPerspective(road,Minv, img_size, flags=cv2.INTER_LINEAR)
         road_warped_bkg = cv2.warpPerspective(road_bkg,Minv, img_size, flags=cv2.INTER_LINEAR)
         base = cv2.addWeighted(image, 1.0, road_warped_bkg, -1.0, 0.0)
-        result = cv2.addWeighted(base, 1.0, road_warped, 1.0, 0.0)
+        result = cv2.addWeighted(base, 1.0, road_warped, 0.7, 0.0)
 
 
         xm_per_pix = curve_centers.xm_per_pix
@@ -272,8 +252,11 @@ for file in dirs:
         cv2.putText(result,'Radius of Left Curvature ='+str(round(left_curverad,3))+'(m)',(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
         cv2.putText(result,'Vehicle is '+str(abs(round(center_diff,3)))+'m '+side_pos+' of center',(50,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
 
-        
+        return result
 
 
-        write_name = './test_images/result_'+file
-        cv2.imwrite(write_name, result) 
+project_output = 'project_solution.mp4'
+input_video = 'project_video.mp4'
+clip1 = VideoFileClip(input_video)
+project_clip = clip1.fl_image(process_img) #NOTE: this function expects color images!!
+project_clip.write_videofile(project_output, audio=False)
