@@ -67,30 +67,6 @@ def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
     # 6) Return this mask as your binary_output image
     return binary_output 
 
-def region_of_interest(img, vertices):
-    """
-    Applies an image mask.
-    
-    Only keeps the region of the image defined by the polygon
-    formed from `vertices`. The rest of the image is set to black.
-    """
-    #defining a blank mask to start with
-    mask = np.zeros_like(img)   
-    
-    #defining a 3 channel or 1 channel color to fill the mask with depending on the input image
-    if len(img.shape) > 2:
-        channel_count = img.shape[2]  # i.e. 3 or 4 depending on your image
-        ignore_mask_color = (255,) * channel_count
-    else:
-        ignore_mask_color = 255
-        
-    #filling pixels inside the polygon defined by "vertices" with the fill color    
-    cv2.fillPoly(mask, vertices, ignore_mask_color)
-    
-    #returning the image only where mask pixels are nonzero
-    masked_image = cv2.bitwise_and(img, mask)
-    return masked_image
-
 def color_threshold(img, s_thresh=(100, 255), v_thresh=(100, 255)):
     image = np.copy(img)
     # Convert to HSV color space and separate the V channel
@@ -113,28 +89,6 @@ def window_mask(width, height, img_ref, center,level):
     return output
 
 
-def pipeline_test(img, s_thresh=(100, 255), v_thresh=(50, 255), mag_tr=(50, 255), ksize=3):
-    image = np.copy(img)
-    # Convert to HSV color space and separate the V channel
-    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
-    h_channel = hls[:,:,0]
-    l_channel = hls[:,:,1]
-    s_channel = hls[:,:,2]
-    red_channel = image[:,:,0]
-    
-    gradx = abs_sobel_thresh(image, orient='x', sobel_kernel=ksize, thresh=thresh)
-    grady = abs_sobel_thresh(image, orient='y', sobel_kernel=ksize,thresh=thresh)
-    mag_binary = mag_thresh(image, sobel_kernel=ksize, mag_thresh=mag_tr)
-    dir_binary = dir_threshold(image, sobel_kernel=ksize, thresh=(0.7, 1.3))
-      
-    combined = np.zeros_like(gradx)
-    combined[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1))
-                                           | (s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
-    
-      
-    return combined
-
-
 # Read in the saved camera matrix and distortion coefficients saved in pickle file
 dist_pickle = pickle.load( open("./camera_cal/dist_pickle.p", "rb" ))
 mtx = dist_pickle["mtx"]
@@ -152,7 +106,7 @@ for file in dirs:
 
         ksize = 3
         mag_tr = (20,255)
-        #preprocess_img = np.zeros_like(image[:,:,0])
+
         gradx = abs_sobel_thresh(image, orient='x', sobel_kernel=ksize,thresh= (12, 255))
         grady = abs_sobel_thresh(image, orient='y', sobel_kernel=ksize,thresh= (25, 255))
         mag_binary = mag_thresh(image, sobel_kernel=ksize, mag_thresh=mag_tr)
@@ -160,6 +114,8 @@ for file in dirs:
         color_binary = color_threshold(image, v_thresh=(150,255), s_thresh=(100,255))
         preprocess_img = np.zeros_like(gradx)
         preprocess_img[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1)) | (color_binary == 1)] = 255 
+
+        #result1 = preprocess_img
 
         #define are for prespective transform
         img_size = (image.shape[1], image.shape[0])
@@ -171,10 +127,12 @@ for file in dirs:
                           [image.shape[1]*(.5+mid_width/2),image.shape[0]*height_pct],
                           [image.shape[1]*(.5+bot_width/2),image.shape[0]*bottom_trim],
                           [image.shape[1]*(.5-bot_width/2),image.shape[0]*bottom_trim]])
-        offset = img_size[0]*0.15
+        offset = img_size[0]*0.25
         dst = np.float32([[offset, 0], [img_size[0]-offset, 0],
                           [img_size[0]-offset, img_size[1]], 
                           [offset, img_size[1]]])  
+        #print('src=',src)
+        #print('dst=',dst)
 
         #use cv2.getPerspectiveTransform() to get M, the transform matrix
         M = cv2.getPerspectiveTransform(src, dst)
@@ -182,11 +140,14 @@ for file in dirs:
         Minv = cv2.getPerspectiveTransform(dst, src)
         #use cv2.warpPerspective() to warp your image to a top-down view
         warped = cv2.warpPerspective(preprocess_img, M, img_size,flags=cv2.INTER_LINEAR)
+
+        #result1 = warped
+
         window_width = 80
         window_height = 80
-
+        
         #set up overall class for lane finding
-        curve_centers = Line(Mywindow_width = window_width, Mywindow_height = window_height, Mymargin = 25, My_ym = 30/720, My_xm = 3.7/700, Mysmooth_factor = 15)
+        curve_centers = Line(Mywindow_width = window_width, Mywindow_height = window_height, Mymargin = 25, My_ym = 20/720, My_xm = 3.7/500, Mysmooth_factor = 15)
         window_centroids = curve_centers.find_window_centroids(warped)
 
         #points to draw left and right windows
@@ -214,7 +175,8 @@ for file in dirs:
         zero_channel = np.zeros_like(template) # create a zero color channle 
         template = np.array(cv2.merge((zero_channel,template,zero_channel)),np.uint8) # make window pixels green
         warpage = np.array(cv2.merge((warped,warped,warped)),np.uint8) # making the original road pixels 3 color channels
-        #result = cv2.addWeighted(warpage, 1, template, 0.5, 0.0) # overlay the orignal road image with window results
+
+        #result1 = cv2.addWeighted(warpage, 1, template, 0.5, 0.0) # overlay the orignal road image with window results
         
         #fit the lane boundaries to the left,right center positions found
         yvals = range(0,warped.shape[0])
@@ -236,18 +198,17 @@ for file in dirs:
 
         road = np.zeros_like(image)
         road_bkg = np.zeros_like(image)
-        cv2.fillPoly(road,[left_lane],color=[255,0,0]) 
-        cv2.fillPoly(road,[right_lane],color=[0,0,255]) 
-        cv2.fillPoly(road_bkg,[left_lane],color=[255,255,255]) 
-        cv2.fillPoly(road_bkg,[right_lane],color=[255,255,255]) 
+        cv2.fillPoly(road,[left_lane],color=[255,0,0])
+        cv2.fillPoly(road,[right_lane],color=[0,0,255])
+        cv2.fillPoly(road_bkg,[left_lane],color=[255,255,255])
+        cv2.fillPoly(road_bkg,[right_lane],color=[255,255,255])
 
         #result = road
 
         road_warped = cv2.warpPerspective(road,Minv, img_size, flags=cv2.INTER_LINEAR)
         road_warped_bkg = cv2.warpPerspective(road_bkg,Minv, img_size, flags=cv2.INTER_LINEAR)
         base = cv2.addWeighted(image, 1.0, road_warped_bkg, -1.0, 0.0)
-        result = cv2.addWeighted(base, 1.0, road_warped, 1.0, 0.0)
-
+        result = cv2.addWeighted(base, 1.0, road_warped, 0.3, 0.0)
 
         xm_per_pix = curve_centers.xm_per_pix
         ym_per_pix = curve_centers.ym_per_pix
