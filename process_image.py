@@ -143,9 +143,6 @@ for file in dirs:
 
         #result1 = warped
         
-        #set up overall class for lane finding
-        #curve_centers = Line(Mywindow_width = window_width, Mywindow_height = window_height, Mymargin = 25, My_ym = 20/720, My_xm = 3.7/500, Mysmooth_factor = 15)
-        #window_centroids = curve_centers.find_window_centroids(warped)
 
         # Take a histogram of the bottom half of the image
         histogram = np.sum(warped[int(warped.shape[0]/2):,:], axis=0)
@@ -255,7 +252,7 @@ for file in dirs:
         # Fit new polynomials to x,y in world space
         left_fit_cr = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
         right_fit_cr = np.polyfit(righty*ym_per_pix, rightx*xm_per_pix, 2)
-        # Calculate the new radii of curvature
+        # Calculate the new radius of curvature
         left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
         right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
         # Now our radius of curvature is in meters        
