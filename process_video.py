@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-from lane_finding import Line
+#from lane_finding import Line
 #%matplotlib inline
 
 def abs_sobel_thresh(img, orient='x', sobel_kernel=3, thresh=(10, 255)):
@@ -159,87 +159,127 @@ def process_img(image):
         Minv = cv2.getPerspectiveTransform(dst, src)
         #use cv2.warpPerspective() to warp your image to a top-down view
         warped = cv2.warpPerspective(preprocess_img, M, img_size,flags=cv2.INTER_LINEAR)
-        window_width = 80
-        window_height = 80
 
-        #set up overall class for lane finding
-        curve_centers = Line(Mywindow_width = window_width, Mywindow_height = window_height, Mymargin = 25, My_ym = 30/720, My_xm = 3.7/700, Mysmooth_factor = 15)
-        window_centroids = curve_centers.find_window_centroids(warped)
 
-        #points to draw left and right windows
-        l_points = np.zeros_like(warped)
-        r_points = np.zeros_like(warped)
-
-        #points used to find the left and right lanes
-        rightx = []
-        leftx = []
-
-        #iterate over each level and draw windows
-        for level in range(0,len(window_centroids)):
-           #window_mask is a function to draw window areas
-           l_mask = window_mask(window_width,window_height,warped,window_centroids[level][0],level)
-           r_mask = window_mask(window_width,window_height,warped,window_centroids[level][1],level)
-           #add center value in frame to list of lane points per left,right
-           leftx.append(window_centroids[level][0])
-           rightx.append(window_centroids[level][1])
-	   # Add graphic points from window mask here to total pixels found 
-           l_points[(l_points == 255) | ((l_mask == 1) ) ] = 255
-           r_points[(r_points == 255) | ((r_mask == 1) ) ] = 255
-
-        # Draw the results
-        template = np.array(r_points+l_points,np.uint8) # add both left and right window pixels together
-        zero_channel = np.zeros_like(template) # create a zero color channle 
-        template = np.array(cv2.merge((zero_channel,template,zero_channel)),np.uint8) # make window pixels green
-        warpage = np.array(cv2.merge((warped,warped,warped)),np.uint8) # making the original road pixels 3 color channels
-        #result = cv2.addWeighted(warpage, 1, template, 0.5, 0.0) # overlay the orignal road image with window results
+        #result1 = warped
         
-        #fit the lane boundaries to the left,right center positions found
-        yvals = range(0,warped.shape[0])
+        #set up overall class for lane finding
+        #curve_centers = Line(Mywindow_width = window_width, Mywindow_height = window_height, Mymargin = 25, My_ym = 20/720, My_xm = 3.7/500, Mysmooth_factor = 15)
+        #window_centroids = curve_centers.find_window_centroids(warped)
 
-        res_yvals = np.arange(warped.shape[0]-(window_height/2),0,-window_height)
+        # Take a histogram of the bottom half of the image
+        histogram = np.sum(warped[int(warped.shape[0]/2):,:], axis=0)
+        # Create an output image to draw on and  visualize the result
+        out_img = np.dstack((warped, warped, warped))*255
 
-        left_fit = np.polyfit(res_yvals, leftx, 2)
-        left_fitx = left_fit[0]*yvals*yvals + left_fit[1]*yvals + left_fit[2]
-        left_fitx = np.array(left_fitx,np.int32)
+        # Find the peak of the left and right halves of the histogram
+        # These will be the starting point for the left and right lines
+        midpoint = np.int(histogram.shape[0]/2)
+        leftx_base = np.argmax(histogram[:midpoint])
+        rightx_base = np.argmax(histogram[midpoint:]) + midpoint
+
+        # Choose the number of sliding windows
+        nwindows = 9
+        # Set height of windows
+        window_height = np.int(warped.shape[0]/nwindows)
+        # Identify the x and y positions of all nonzero pixels in the image
+        nonzero = warped.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+        # Current positions to be updated for each window
+        leftx_current = leftx_base
+        rightx_current = rightx_base
+        # Set the width of the windows +/- margin
+        margin = 100
+        # Set minimum number of pixels found to recenter window
+        minpix = 50
+        # Create empty lists to receive left and right lane pixel indices
+        left_lane_inds = []
+        right_lane_inds = []
+
+        # Step through the windows one by one
+        for window in range(nwindows):
+           # Identify window boundaries in x and y (and right and left)
+           win_y_low = warped.shape[0] - (window+1)*window_height
+           win_y_high = warped.shape[0] - window*window_height
+           win_xleft_low = leftx_current - margin
+           win_xleft_high = leftx_current + margin
+           win_xright_low = rightx_current - margin
+           win_xright_high = rightx_current + margin
+           # Draw the windows on the visualization image
+           cv2.rectangle(out_img,(int(win_xleft_low),int(win_y_low)),(int(win_xleft_high),int(win_y_high)),(0,255,0), 2) 
+           cv2.rectangle(out_img,(int(win_xright_low),int(win_y_low)),(int(win_xright_high),int(win_y_high)),(0,255,0), 2) 
+           # Identify the nonzero pixels in x and y within the window
+           good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
+           good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
+           # Append these indices to the lists
+           left_lane_inds.append(good_left_inds)
+           right_lane_inds.append(good_right_inds)
+           # If you found > minpix pixels, recenter next window on their mean position
+           if len(good_left_inds) > minpix:
+              leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
+           if len(good_right_inds) > minpix:        
+              rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
+
+        # Concatenate the arrays of indices
+        left_lane_inds = np.concatenate(left_lane_inds)
+        right_lane_inds = np.concatenate(right_lane_inds)
+
+        # Extract left and right line pixel positions
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds] 
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds] 
+
+        # Fit a second order polynomial to each
+        left_fit = np.polyfit(lefty, leftx, 2)
+        right_fit = np.polyfit(righty, rightx, 2)
 
 
-        right_fit = np.polyfit(res_yvals, rightx, 2)
-        right_fitx = left_fit[0]*yvals*yvals + right_fit[1]*yvals + right_fit[2]
-        right_fitx = np.array(right_fitx,np.int32)
+        ploty = np.linspace(0, warped.shape[0]-1, warped.shape[0] )
+        left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
+        right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
 
-        left_lane = np.array(list(zip(np.concatenate((left_fitx-window_width/2,left_fitx[::-1]+window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
-        right_lane = np.array(list(zip(np.concatenate((right_fitx-window_width/2,right_fitx[::-1]+window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
-        middle_marker = np.array(list(zip(np.concatenate((right_fitx-window_width/2,right_fitx[::-1]+window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
-        inner_lane = np.array(list(zip(np.concatenate((left_fitx+window_width/2,right_fitx[::-1]-window_width/2),axis=0),np.concatenate((yvals,yvals[::-1]),axis=0))),np.int32)
+        out_img[lefty, leftx] = [255, 0, 0]
+        out_img[righty, rightx] = [0, 0, 255]
 
+        #result = out_img
 
-        road = np.zeros_like(image)
-        road_bkg = np.zeros_like(image)
-        cv2.fillPoly(road,[left_lane],color=[255,0,0]) 
-        cv2.fillPoly(road,[right_lane],color=[0,0,255]) 
-        cv2.fillPoly(road,[inner_lane],color=[0,255,0]) 
-        cv2.fillPoly(road_bkg,[left_lane],color=[255,255,255]) 
-        cv2.fillPoly(road_bkg,[right_lane],color=[255,255,255]) 
+        warp_zero = np.zeros_like(warped).astype(np.uint8)
+        color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
 
-        #result = road
+        # Recast the x and y points into usable format for cv2.fillPoly()
+        pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+        pts = np.hstack((pts_left, pts_right))
 
-        road_warped = cv2.warpPerspective(road,Minv, img_size, flags=cv2.INTER_LINEAR)
-        road_warped_bkg = cv2.warpPerspective(road_bkg,Minv, img_size, flags=cv2.INTER_LINEAR)
-        base = cv2.addWeighted(image, 1.0, road_warped_bkg, -1.0, 0.0)
-        result = cv2.addWeighted(base, 1.0, road_warped, 0.7, 0.0)
+        # Draw the lane onto the warped blank image
+        cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
+        # Color in left and right line pixels
+        #color_warp[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
+        #color_warp[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
+        #color_warp[lefty, leftx] = [255, 0, 0]
+        #color_warp[righty, rightx] = [0, 0, 255]
 
+        # Warp the blank back to original image space using inverse perspective matrix (Minv)
+        newwarp = cv2.warpPerspective(color_warp, Minv, (image.shape[1], image.shape[0])) 
+        # Combine the result with the original image
+        result = cv2.addWeighted(image, 1, newwarp, 0.3, 0)
 
-        xm_per_pix = curve_centers.xm_per_pix
-        ym_per_pix = curve_centers.ym_per_pix
+        xm_per_pix = 3.7/700
+        ym_per_pix = 3/100
 
+        #y_eval = 0
+        y_eval = np.max(ploty)
 
         # Fit new polynomials to x,y in world space
-        left_fit_cr = np.polyfit(np.array(res_yvals,np.float32)*ym_per_pix, np.array(leftx,np.float32)*xm_per_pix, 2)
-        right_fit_cr = np.polyfit(np.array(res_yvals,np.float32)*ym_per_pix, np.array(rightx,np.float32)*xm_per_pix, 2)
-        # Calculate the new radius of curvature  
-        left_curverad = ((1 + (2*left_fit_cr[0]*yvals[-1]*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
-        right_curverad = ((1 + (2*right_fit_cr[0]*yvals[-1]*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
+        left_fit_cr = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
+        right_fit_cr = np.polyfit(righty*ym_per_pix, rightx*xm_per_pix, 2)
+        # Calculate the new radii of curvature
+        left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
+        right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
         # Now our radius of curvature is in meters        
+
 
         #calculate offset of car from center of the road
         camera_center = (left_fitx[-1] + right_fitx[-1])/2
@@ -247,6 +287,7 @@ def process_img(image):
         side_pos = 'left'
         if center_diff <= 0:
            side_pos = 'right'
+
 
         #draw the text showing curvature, offset and speed
         cv2.putText(result,'Radius of Left Curvature ='+str(round(left_curverad,3))+'(m)',(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
