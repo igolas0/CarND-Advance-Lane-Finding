@@ -67,8 +67,12 @@ def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
     # 6) Return this mask as your binary_output image
     return binary_output 
 
-def color_threshold(img, s_thresh=(100, 255), v_thresh=(100, 255)):
+def color_threshold(img, s_thresh=(100, 255), g_thresh=(250, 255), r_thresh=(150, 255), b_thresh=(200, 255)):
     image = np.copy(img)
+    #extrag bgr channels
+    b_channel = image[:,:,0]
+    g_channel = image[:,:,1]
+    r_channel = image[:,:,2]
     # Convert to HSV color space and separate the V channel
     hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
     v_channel = hsv[:,:,2]
@@ -78,7 +82,9 @@ def color_threshold(img, s_thresh=(100, 255), v_thresh=(100, 255)):
     s_channel = hls[:,:,2]
       
     combined = np.zeros_like(s_channel)
-    combined[(v_channel >= v_thresh[0]) & (v_channel <= v_thresh[1]) 
+    combined[(g_channel >= g_thresh[0]) & (g_channel <= g_thresh[1]) 
+                                         | (r_channel >= r_thresh[0]) & (r_channel <= r_thresh[1])
+                                         | (b_channel >= b_thresh[0]) & (b_channel <= b_thresh[1])
                                          | (s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
 
     return combined
@@ -104,18 +110,20 @@ for file in dirs:
         image = cv2.imread(str1+file)
         image = cv2.undistort(image, mtx, dist, None, mtx)
 
-        ksize = 3
-        mag_tr = (20,255)
+        #ksize = 3
+        #mag_tr = (20,255)
 
-        gradx = abs_sobel_thresh(image, orient='x', sobel_kernel=ksize,thresh= (12, 255))
-        grady = abs_sobel_thresh(image, orient='y', sobel_kernel=ksize,thresh= (25, 255))
-        mag_binary = mag_thresh(image, sobel_kernel=ksize, mag_thresh=mag_tr)
-        dir_binary = dir_threshold(image, sobel_kernel=ksize, thresh=(0.7, 1.3))
-        color_binary = color_threshold(image, v_thresh=(150,255), s_thresh=(100,255))
-        preprocess_img = np.zeros_like(gradx)
-        preprocess_img[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1)) | (color_binary == 1)] = 255 
+        #gradx = abs_sobel_thresh(image, orient='x', sobel_kernel=ksize,thresh= (12, 255))
+        #grady = abs_sobel_thresh(image, orient='y', sobel_kernel=ksize,thresh= (25, 255))
+        #mag_binary = mag_thresh(image, sobel_kernel=ksize, mag_thresh=mag_tr)
+        #dir_binary = dir_threshold(image, sobel_kernel=ksize, thresh=(0.7, 1.3))
+        color_binary = color_threshold(image, g_thresh=(255,255), s_thresh=(130,255), b_thresh=(190,255), r_thresh=(180,255))
+        preprocess_img = np.zeros_like(color_binary)
+        #preprocess_img[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1)) | (color_binary == 1)] = 255 
+        preprocess_img[(color_binary == 1)] = 255 
 
-        #result1 = preprocess_img
+        result1 = preprocess_img
+        #result1 = color_binary
 
         #define are for prespective transform
         img_size = (image.shape[1], image.shape[0])
@@ -244,7 +252,7 @@ for file in dirs:
         
 
         xm_per_pix = 3.7/700
-        ym_per_pix = 3/100
+        ym_per_pix = 30/720
 
         #y_eval = 0
         y_eval = np.max(ploty)
@@ -259,16 +267,21 @@ for file in dirs:
 
 
         #calculate offset of car from center of the road
-        camera_center = (left_fitx[-1] + right_fitx[-1])/2
-        center_diff = (camera_center-warped.shape[1]/2)*xm_per_pix
-        side_pos = 'left'
+        lane_center = (left_fitx[-1] + right_fitx[-1])/2
+        car_center = warped.shape[1]/2
+        center_diff = (car_center-lane_center)*xm_per_pix
+        side_pos = 'right'
         if center_diff <= 0:
-           side_pos = 'right'
+           side_pos = 'left'
 
+        #print('leftfitx[-1]',left_fitx[-1])
+        #print('rightfitx[-1]',right_fitx[-1])
+        #print('center diff',center_diff)
 
         #draw the text showing curvature, offset and speed
         cv2.putText(result,'Radius of Left Curvature ='+str(round(left_curverad,3))+'(m)',(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
-        cv2.putText(result,'Vehicle is '+str(abs(round(center_diff,3)))+'m '+side_pos+' of center',(50,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
+        cv2.putText(result,'Radius of Right Curvature ='+str(round(right_curverad,3))+'(m)',(50,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
+        cv2.putText(result,'Vehicle is '+str(abs(round(center_diff,3)))+'m '+side_pos+' of center',(50,150), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
 
         write_name = './test_images/result_'+file
-        cv2.imwrite(write_name, result) 
+        cv2.imwrite(write_name, result1) 
