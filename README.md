@@ -167,6 +167,8 @@ Here's the [link to my video result](./project_solution.mp4)
 
 The bigger challenges of this project were as in the first project to detect the lanes in different lighting conditions as well as lanes of different colors. Changes of the road pavement color or texture impose a difficult task identifying the lanes.
 
+My pipeline suffices to meet the requirements of the project video, but does not suffice to handle the more difficult conditions met in the challenge videos. Here is further work needed.
+
 In the challenge videos the reflections of the sun through the windshield on to the camera made the pipeline detect a lot of clutter. The big turns were also a problem to the conshardcoded source and destination points of the perspective transform. Ideally one would define a more dinamically defined perspective transform based on the measured curvature.
 
 There is also room for further optimizing the thresholding of the binary image to improve the results. Further experimentation is needed (maybe including dynamic thresholding). Also a more refined way of smoothing the results over several frames and logic to discard difficult frames would be needed for good results on the challenger videos. 
