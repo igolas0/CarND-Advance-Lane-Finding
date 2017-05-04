@@ -1,4 +1,4 @@
-from moviepy.editor import VideoFileClip
+from 	moviepy.editor import VideoFileClip
 import os
 import pickle
 import cv2
@@ -91,22 +91,25 @@ def region_of_interest(img, vertices):
     masked_image = cv2.bitwise_and(img, mask)
     return masked_image
 
-def color_threshold(img, s_thresh=(100, 255), g_thresh=(250, 255), r_thresh=(150, 255), b_thresh=(200, 255)):
+def color_threshold(img, s_thresh=(255, 255), b_lab_thresh=(250, 255), r_thresh=(150, 255), b_thresh=(200, 255)):
     image = np.copy(img)
     #extrag bgr channels
     b_channel = image[:,:,0]
     g_channel = image[:,:,1]
     r_channel = image[:,:,2]
+    # Convert to Lab color space and separate the L channel
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2Lab).astype(np.float)
+    b_lab_channel = lab[:,:,2]
     # Convert to HSV color space and separate the V channel
     hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
     v_channel = hsv[:,:,2]
-    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
+    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
     h_channel = hls[:,:,0]
-    l_channel = hls[:,:,1]
+    #l_channel = hls[:,:,1]
     s_channel = hls[:,:,2]
       
     combined = np.zeros_like(s_channel)
-    combined[(g_channel >= g_thresh[0]) & (g_channel <= g_thresh[1]) 
+    combined[(b_lab_channel >= b_lab_thresh[0]) & (b_lab_channel <= b_lab_thresh[1]) 
                                          | (r_channel >= r_thresh[0]) & (r_channel <= r_thresh[1])
                                          | (b_channel >= b_thresh[0]) & (b_channel <= b_thresh[1])
                                          | (s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
@@ -140,18 +143,20 @@ def process_img(image):
         #grady = abs_sobel_thresh(image, orient='y', sobel_kernel=ksize,thresh= (25, 255))
         #mag_binary = mag_thresh(image, sobel_kernel=ksize, mag_thresh=mag_tr)
         #dir_binary = dir_threshold(image, sobel_kernel=ksize, thresh=(0.7, 1.3))
-        color_binary = color_threshold(image, g_thresh=(255,255), s_thresh=(130,255), b_thresh=(190,255), r_thresh=(255,255))
+        color_binary = color_threshold(image, b_lab_thresh=(150,255), s_thresh=(255,255), b_thresh=(190,255), r_thresh=(255,255))
         preprocess_img = np.zeros_like(color_binary)
         #preprocess_img[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1)) | (color_binary == 1)] = 255 
         preprocess_img[(color_binary == 1)] = 255 
 
         #result1 = preprocess_img
 
-        #define are for prespective transform
+        #define are for pespective transform
         img_size = (image.shape[1], image.shape[0])
-        bot_width = .76 #percent of bottom trapizoid height
-        mid_width = .08 #percent of middle trapizoid height
-        height_pct = .62 #percent for trapizoid height
+        bot_width = .76 #percent of bottom trapizoid width
+        #mid_width = .08 #percent of middle trapizoid width
+        mid_width = .17 #percent of middle trapizoid width
+        #height_pct = .62 #percent for trapizoid height
+        height_pct = .66 #percent for trapizoid height
         bottom_trim = .935 # percent from top (bottom of img) to avoid hood)
         src = np.float32([[image.shape[1]*(.5-mid_width/2),image.shape[0]*height_pct],
                           [image.shape[1]*(.5+mid_width/2),image.shape[0]*height_pct],
@@ -276,7 +281,7 @@ def process_img(image):
         result = cv2.addWeighted(image, 1, newwarp, 0.3, 0)
 
         xm_per_pix = 3.7/700
-        ym_per_pix = 30/720
+        ym_per_pix = 17/720
 
         #y_eval = 0
         y_eval = np.max(ploty)
