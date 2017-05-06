@@ -2,7 +2,7 @@ global int counter
 
  
 
-# New = gamma * New + (1-gamma) * Old. 0 < gamma < 1.0
+## New = gamma * New + (1-gamma) * Old. 0 < gamma < 1.0
 
  
 
@@ -12,7 +12,7 @@ class Line():
 
     def __init__(self):
 
-        # was the line detected in the last iteration?
+        # was line detected in the last iteration?
 
         self.detected = False 
 
@@ -52,7 +52,18 @@ class Line():
 
         self.ally = None
 
- 
+def main(self, warped):
+
+    leftx, lefty, rightx, righty = find_lanes(self, warped)
+
+        
+    # Fit a second order polynomial to each
+
+    left_fit = np.polyfit(lefty, leftx, 2)
+
+    right_fit = np.polyfit(righty, rightx, 2)           
+
+def calc_curv_pos(
 
 def sanity_check(self):
     self.detected = False
@@ -205,11 +216,12 @@ def find_lanes(self, warped):
 
         # Fit a second order polynomial to each
 
-        left_fit = np.polyfit(lefty, leftx, 2)
+        #left_fit = np.polyfit(lefty, leftx, 2)
 
-        right_fit = np.polyfit(righty, rightx, 2)           
+        #right_fit = np.polyfit(righty, rightx, 2)           
 
-        return left_fit, right_fit
+        #return left_fit, right_fit
+        return leftx, lefty, rightx, righty
 
                                                               
 

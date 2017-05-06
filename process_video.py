@@ -281,7 +281,7 @@ def process_img(image):
         result = cv2.addWeighted(image, 1, newwarp, 0.3, 0)
 
         xm_per_pix = 3.7/700
-        ym_per_pix = 17/720
+        ym_per_pix = 25/720
 
         #y_eval = 0
         y_eval = np.max(ploty)
