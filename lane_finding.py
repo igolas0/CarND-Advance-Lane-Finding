@@ -1,21 +1,22 @@
-global int counter
+import numpy as np
+import cv2
 
- 
+#global int counter
 
 ## New = gamma * New + (1-gamma) * Old. 0 < gamma < 1.0
 
 class Line():
 
-    def __init__(self):
+    def __init__(self, My_ym = 1, My_xm = 1, Mysmooth_factor = 15):
 
         # was line detected in the last iteration?
 
         self.detected = False 
 
-        self.recent_leftx = []
-        self.recent_lefty = []
-        self.recent_rightx = []
-        self.recent_righty = []
+        self.leftx = []
+        self.lefty = []
+        self.rightx = []
+        self.righty = []
         self.history_leftx = []
         self.history_lefty = []
         self.history_rightx = []
@@ -24,67 +25,76 @@ class Line():
         self.left_radius = None
         self.left_fit = None
         self.right_fit = None
-        self.smooth_factor = 15
+        self.smooth_factor = Mysmooth_factor
 
-        self.xm_per_pix = 4/700
-        self.ym_per_pix = 25/720
+        self.xm_per_pix = My_xm
+        self.ym_per_pix = My_ym
 
         #radius of curvature of the line in m 
-        self.radius_of_curvature =  None
+        self.radius_curvature =  None
         self.radius_history = []
         #car pos from center of lane in m
         self.center_pos =  None
 
-def main(self, warped):
+    def main(self, warped):
 
-    if find_lanes(self, warped) == True:
+       self.leftx, self.lefty, self.rightx, self.righty = self.find_lanes(warped)
 
-       calc_radius(self)
+       self.left_radius, self.right_radius = self.calc_radius()
 
-       if sanity_check(self) == True:
+       if self.sanity_check(warped) == True:
 
-          self.history_leftx.append(self.recent_leftx)
-          self.history_lefty.append(self.recent_lefty)
-          self.history_rightx.append(self.recent_rightx)
-          self.history_righty.append(self.recent_righty)
+          self.history_leftx.append(self.leftx)
+          self.history_lefty.append(self.lefty)
+          self.history_rightx.append(self.rightx)
+          self.history_righty.append(self.righty)
         
           # Fit a second order polynomial to each
-          self.left_fit = np.polyfit(self.history_lefty[-self.smooth_factor:], self.history_leftx[-self.smooth_factor:], 2)
-          self.right_fit = np.polyfit(self.history_righty[-self.smooth_factor:], self.history_rightx[-self.smooth_factor:], 2)           
+          self.left_fit = np.polyfit(np.ravel(self.history_lefty[-self.smooth_factor:]), np.ravel(self.history_leftx[-self.smooth_factor:]), 2)
+          self.right_fit = np.polyfit(np.ravel(self.history_righty[-self.smooth_factor:]), np.ravel(self.history_rightx[-self.smooth_factor:]), 2)           
           
-          radius = (self.radius_left + self.radius_right)/2
+          self.left_radius, self.right_radius = self.calc_radius()
+          radius = (self.left_radius + self.right_radius)/2
           self.radius_history.append(radius)
-          self.radius_of_curvature = np.average(self.radius_history[-self.smooth_factor:])
+          self.radius_curvature = np.average(self.radius_history[-self.smooth_factor:])
 
-          self.center_pos = calc_car_pos(self,warped)
+          self.center_pos = self.calc_car_pos(warped)
 
-       elif left_fit==None or right_fit==None:
+       elif self.left_fit==None or self.right_fit==None:
 
-          self.history_leftx.append(self.recent_leftx)
-          self.history_lefty.append(self.recent_lefty)
-          self.history_rightx.append(self.recent_rightx)
-          self.history_righty.append(self.recent_righty)
+          self.history_leftx.append(self.leftx)
+          self.history_lefty.append(self.lefty)
+          self.history_rightx.append(self.rightx)
+          self.history_righty.append(self.righty)
         
           # Fit a second order polynomial to each
-          self.left_fit = np.polyfit(self.history_lefty[-self.smooth_factor:], self.history_leftx[-self.smooth_factor:], 2)
-          self.right_fit = np.polyfit(self.history_righty[-self.smooth_factor:], self.history_rightx[-self.smooth_factor:], 2)           
+          self.left_fit = np.polyfit(np.ravel(self.history_lefty[-self.smooth_factor:]), np.ravel(self.history_leftx[-self.smooth_factor:]), 2)
+          self.right_fit = np.polyfit(np.ravel(self.history_righty[-self.smooth_factor:]), np.ravel(self.history_rightx[-self.smooth_factor:]), 2)           
 
 
-def calc_radius(self):
+          self.left_radius, self.right_radius = self.calc_radius()
+          radius = (self.left_radius + self.right_radius)/2
+          self.radius_history.append(radius)
+          self.radius_curvature = np.average(self.radius_history[-self.smooth_factor:])
 
-    y_eval = 600
-    #y_eval = np.max(ploty)
+          self.center_pos = self.calc_car_pos(warped)
+       return self.left_fit, self.right_fit, self.center_pos, self.radius_curvature
 
-    # Fit new polynomials to x,y in world space
-    left_fit_cr = np.polyfit(self.recent_lefty*self.ym_per_pix, self.recent_leftx*self.xm_per_pix, 2)
-    right_fit_cr = np.polyfit(self.recent_righty*self.ym_per_pix, self.recent_rightx*self.xm_per_pix, 2)
-    # Calculate the new radius of curvature
-    self.left_radius = ((1 + (2*left_fit_cr[0]*y_eval*self.ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
-    self.right_radius = ((1 + (2*right_fit_cr[0]*y_eval*self.ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
-    # Now our radius of curvature is in meters        
-    return True
+    def calc_radius(self):
 
-def calc_car_pos(self,warped):
+       y_eval = 600
+       #y_eval = np.max(ploty)
+
+       # Fit new polynomials to x,y in world space
+       left_fit_cr = np.polyfit(self.lefty*self.ym_per_pix, self.leftx*self.xm_per_pix, 2)
+       right_fit_cr = np.polyfit(self.righty*self.ym_per_pix, self.rightx*self.xm_per_pix, 2)
+       # Calculate the new radius of curvature
+       left_radius = ((1 + (2*left_fit_cr[0]*y_eval*self.ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
+       right_radius = ((1 + (2*right_fit_cr[0]*y_eval*self.ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
+       # Now our radius of curvature is in meters        
+       return left_radius, right_radius
+
+    def calc_car_pos(self,warped):
 
         ploty = np.linspace(0, warped.shape[0]-1, warped.shape[0] )
         left_fitx = self.left_fit[0]*ploty**2 + self.left_fit[1]*ploty + self.left_fit[2]
@@ -98,24 +108,32 @@ def calc_car_pos(self,warped):
         #   side_pos = 'left'
         return center_diff 
 
-def sanity_check(self):
-    self.detected = False
+    def sanity_check(self,warped):
 
-    if (200 < self.left_fitx[-1] < 400) & (900 < self.right_fitx[-1] < 1100):
+       self.detected = False
 
-       self.detected = True
+       temp_left_fit = np.polyfit(self.lefty, self.leftx, 2)
+       temp_right_fit = np.polyfit(self.righty, self.rightx, 2)           
 
-       if self.left_radius < 2000 or right_radius < 2000:
+       ploty = np.linspace(0, warped.shape[0]-1, warped.shape[0] )
+       temp_left_fitx = temp_left_fit[0]*ploty**2 + temp_left_fit[1]*ploty + temp_left_fit[2]
+       temp_right_fitx = temp_right_fit[0]*ploty**2 + temp_right_fit[1]*ploty + temp_right_fit[2]
+
+       if (200 < temp_left_fitx[-1] < 400) & (900 < temp_right_fitx[-1] < 1100):
+
+          self.detected = True
+
+       if self.left_radius < 2000 and self.right_radius < 2000:
 
           check_radius = self.right_radius/self.left_radius
 
           if check_radius<0.5 or check_radius>1.5:
              self.detected = False
 
-    return self.detected
+       return self.detected
  
 
-def find_lanes(self, warped):
+    def find_lanes(self, warped):
 
         # Take a histogram of the bottom half of the image
 
@@ -235,13 +253,13 @@ def find_lanes(self, warped):
 
         # Extract left and right line pixel positions
 
-        self.recent_leftx = nonzerox[left_lane_inds]
+        leftx = nonzerox[left_lane_inds]
 
-        self.recent_lefty = nonzeroy[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
 
-        self.recent_rightx = nonzerox[right_lane_inds]
+        rightx = nonzerox[right_lane_inds]
 
-        self.recent_righty = nonzeroy[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
 
  
 
@@ -252,7 +270,7 @@ def find_lanes(self, warped):
         #right_fit = np.polyfit(righty, rightx, 2)           
 
         #return left_fit, right_fit
-        return True 
+        return leftx, lefty, rightx, righty
 
                                                               
 
@@ -266,36 +284,36 @@ def find_lanes(self, warped):
 
                               
 
-Do Sanity check:
+#Do Sanity check:
 
  
 
-if False take Last Best fit, last center pos and last best Curvature,
+#if False take Last Best fit, last center pos and last best Curvature,
 
-                else WEIGHTED AVERAGE OVER CURRENT AND LAST FITS, CURVATURES (take middle of left and right) and center_pos
-
- 
-
-def sanity_check:
+#                else WEIGHTED AVERAGE OVER CURRENT AND LAST FITS, CURVATURES (take middle of left and right) and center_pos
 
  
 
-                self.detected = Faulse
+#def sanity_check:
 
  
 
-  1.) curvatures similar
-
-  2.) intercepts in range +- 100 px
-
-  3.) (if detected/last_detected = True: xvalues from polyfit at y=0 and ymax similar (+-25px max) 
+#                self.detected = Faulse
 
  
 
-                if 1.)2.)3.)= TRUE: then self.detected = TRUE and SET COUNTER TO ZERO!
+#  1.) curvatures similar
 
-                ELSE counter += 1
+#  2.) intercepts in range +- 100 px
+
+#  3.) (if detected/last_detected = True: xvalues from polyfit at y=0 and ymax similar (+-25px max) 
+
+ 
+
+#                if 1.)2.)3.)= TRUE: then self.detected = TRUE and SET COUNTER TO ZERO!
+
+#                ELSE counter += 1
 
                
 
-                return self.detected
+#                return self.detected
