@@ -8,6 +8,7 @@ import matplotlib.image as mpimg
 from lane_finding import Line
 #%matplotlib inline
 
+
 def abs_sobel_thresh(img, orient='x', sobel_kernel=3, thresh=(10, 255)):
     
     # 1) Convert to grayscale
@@ -131,7 +132,8 @@ dirs = os.listdir("test_images/")
 str1 = './test_images/'
 str2 = 'result_'
 
-
+#global lane_tracker
+lane_tracker = Line(My_ym = 25/720, My_xm = 4/500, Mysmooth_factor = 10)
 
 def process_img(image):
 
@@ -180,9 +182,9 @@ def process_img(image):
         #result1 = warped
         
         #set up overall class for lane finding
-        global lane_tracker
-        lane_tracker = Line(My_ym = 25/720, My_xm = 4/500, Mysmooth_factor = 15)
+        #lane_tracker = Line(My_ym = 25/720, My_xm = 4/500, Mysmooth_factor = 20)
         left_fit, right_fit, center_diff, curvature = lane_tracker.main(warped) 
+        #left_fit, right_fit, center_diff, curvature = lane_tracker.main(warped) 
         #curve_centers = Line(Mywindow_width = window_width, Mywindow_height = window_height, Mymargin = 25, My_ym = 20/720, My_xm = 3.7/500, Mysmooth_factor = 15)
         #window_centroids = curve_centers.find_window_centroids(warped)
 
@@ -223,6 +225,7 @@ def process_img(image):
 
         #draw the text showing curvature, offset and speed
         cv2.putText(result,'Radius of Curvature ='+str(round(curvature,3))+'(m)',(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
+        #cv2.putText(result,'Counter ='+str(counter)+'(m)',(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
         cv2.putText(result,'Vehicle is '+str(abs(round(center_diff,3)))+'m '+side_pos+' of center',(50,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
 
         return result
@@ -233,5 +236,7 @@ def process_img(image):
 project_output = 'project_solution.mp4'
 input_video = 'project_video.mp4'
 clip1 = VideoFileClip(input_video)
+#new_clip = clip1.subclip(1,10)
+#project_clip = new_clip.fl_image(process_img) #NOTE: this function expects color images!!
 project_clip = clip1.fl_image(process_img) #NOTE: this function expects color images!!
 project_clip.write_videofile(project_output, audio=False)

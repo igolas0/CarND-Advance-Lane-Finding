@@ -26,7 +26,7 @@ class Line():
         self.left_fit = None
         self.right_fit = None
         self.smooth_factor = Mysmooth_factor
-
+     
         self.xm_per_pix = My_xm
         self.ym_per_pix = My_ym
 
@@ -35,9 +35,11 @@ class Line():
         self.radius_history = []
         #car pos from center of lane in m
         self.center_pos =  None
+        #self.counter =  0
 
     def main(self, warped):
 
+       #self.counter += 1
        self.leftx, self.lefty, self.rightx, self.righty = self.find_lanes(warped)
 
        self.left_radius, self.right_radius = self.calc_radius()
@@ -50,8 +52,14 @@ class Line():
           self.history_righty.append(self.righty)
         
           # Fit a second order polynomial to each
-          self.left_fit = np.polyfit(np.ravel(self.history_lefty[-self.smooth_factor:]), np.ravel(self.history_leftx[-self.smooth_factor:]), 2)
-          self.right_fit = np.polyfit(np.ravel(self.history_righty[-self.smooth_factor:]), np.ravel(self.history_rightx[-self.smooth_factor:]), 2)           
+          #print('normal lefty',self.lefty)
+          #a = np.asarray(self.history_lefty[-self.smooth_factor:])
+          #print('shape history lefty last 10',a.shape)
+          #b = np.average(np.asarray(self.history_lefty[-self.smooth_factor:]), axis=0)
+          #print('shape avg exp',b.shape)
+          #print('avg exp',np.average(self.history_lefty[-self.smooth_factor:], axis=0))
+          self.left_fit = np.polyfit(np.hstack(self.history_lefty[-self.smooth_factor:]), np.hstack(self.history_leftx[-self.smooth_factor:]), 2)
+          self.right_fit = np.polyfit(np.hstack(self.history_righty[-self.smooth_factor:]), np.hstack(self.history_rightx[-self.smooth_factor:]), 2)           
           
           self.left_radius, self.right_radius = self.calc_radius()
           radius = (self.left_radius + self.right_radius)/2
@@ -68,8 +76,8 @@ class Line():
           self.history_righty.append(self.righty)
         
           # Fit a second order polynomial to each
-          self.left_fit = np.polyfit(np.ravel(self.history_lefty[-self.smooth_factor:]), np.ravel(self.history_leftx[-self.smooth_factor:]), 2)
-          self.right_fit = np.polyfit(np.ravel(self.history_righty[-self.smooth_factor:]), np.ravel(self.history_rightx[-self.smooth_factor:]), 2)           
+          self.left_fit = np.polyfit(np.hstack(self.history_lefty[-self.smooth_factor:]), np.hstack(self.history_leftx[-self.smooth_factor:]), 2)
+          self.right_fit = np.polyfit(np.hstack(self.history_righty[-self.smooth_factor:]), np.hstack(self.history_rightx[-self.smooth_factor:]), 2)           
 
 
           self.left_radius, self.right_radius = self.calc_radius()
@@ -82,7 +90,7 @@ class Line():
 
     def calc_radius(self):
 
-       y_eval = 600
+       y_eval = 720
        #y_eval = np.max(ploty)
 
        # Fit new polynomials to x,y in world space
@@ -123,12 +131,12 @@ class Line():
 
           self.detected = True
 
-       if self.left_radius < 2000 and self.right_radius < 2000:
+       #if self.left_radius < 2000 and self.right_radius < 2000:
 
-          check_radius = self.right_radius/self.left_radius
+       check_radius = self.right_radius/self.left_radius
 
-          if check_radius<0.5 or check_radius>1.5:
-             self.detected = False
+       if check_radius<0.6 or check_radius>1.4:
+          self.detected = False
 
        return self.detected
  
