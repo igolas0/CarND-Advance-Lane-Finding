@@ -133,7 +133,7 @@ str1 = './test_images/'
 str2 = 'result_'
 
 #global lane_tracker
-lane_tracker = Line(My_ym = 25/720, My_xm = 4/500, Mysmooth_factor = 10)
+lane_tracker = Line(My_ym = 25/720, My_xm = 4/700, Mysmooth_factor = 10)
 
 def process_img(image):
 
@@ -236,7 +236,7 @@ def process_img(image):
 project_output = 'project_solution.mp4'
 input_video = 'project_video.mp4'
 clip1 = VideoFileClip(input_video)
-#new_clip = clip1.subclip(1,10)
+#new_clip = clip1.subclip(1,15)
 #project_clip = new_clip.fl_image(process_img) #NOTE: this function expects color images!!
 project_clip = clip1.fl_image(process_img) #NOTE: this function expects color images!!
 project_clip.write_videofile(project_output, audio=False)

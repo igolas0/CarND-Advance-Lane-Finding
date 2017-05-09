@@ -232,7 +232,7 @@ for file in dirs:
         out_img[lefty, leftx] = [255, 0, 0]
         out_img[righty, rightx] = [0, 0, 255]
 
-        #result1 = out_img
+        result1 = out_img
 
         warp_zero = np.zeros_like(warped).astype(np.uint8)
         color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -254,9 +254,8 @@ for file in dirs:
         # Combine the result with the original image
         result = cv2.addWeighted(image, 1, newwarp, 0.3, 0)
         
-
-        xm_per_pix = 3.7/700
-        ym_per_pix = 30/720
+        xm_per_pix = 4/700
+        ym_per_pix = 25/720
 
         #y_eval = 600
         y_eval = np.max(ploty)
@@ -267,6 +266,7 @@ for file in dirs:
         # Calculate the new radius of curvature
         left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
         right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
+        curverad = (left_curverad + right_curverad)/2
         # Now our radius of curvature is in meters        
 
 
@@ -283,9 +283,9 @@ for file in dirs:
         #print('center diff',center_diff)
 
         #draw the text showing curvature, offset and speed
-        cv2.putText(result,'Radius of Left Curvature ='+str(round(left_curverad,3))+'(m)',(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
-        cv2.putText(result,'Radius of Right Curvature ='+str(round(right_curverad,3))+'(m)',(50,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
-        cv2.putText(result,'Vehicle is '+str(abs(round(center_diff,3)))+'m '+side_pos+' of center',(50,150), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
+        cv2.putText(result,'Radius of Curvature ='+str(round(curverad,3))+'(m)',(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
+        #cv2.putText(result,'Radius of Right Curvature ='+str(round(right_curverad,3))+'(m)',(50,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
+        cv2.putText(result,'Vehicle is '+str(abs(round(center_diff,3)))+'m '+side_pos+' of center',(50,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2)
 
         write_name = './test_images/result_'+file
-        cv2.imwrite(write_name, result1) 
+        cv2.imwrite(write_name, result) 

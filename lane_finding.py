@@ -51,13 +51,6 @@ class Line():
           self.history_rightx.append(self.rightx)
           self.history_righty.append(self.righty)
         
-          # Fit a second order polynomial to each
-          #print('normal lefty',self.lefty)
-          #a = np.asarray(self.history_lefty[-self.smooth_factor:])
-          #print('shape history lefty last 10',a.shape)
-          #b = np.average(np.asarray(self.history_lefty[-self.smooth_factor:]), axis=0)
-          #print('shape avg exp',b.shape)
-          #print('avg exp',np.average(self.history_lefty[-self.smooth_factor:], axis=0))
           self.left_fit = np.polyfit(np.hstack(self.history_lefty[-self.smooth_factor:]), np.hstack(self.history_leftx[-self.smooth_factor:]), 2)
           self.right_fit = np.polyfit(np.hstack(self.history_righty[-self.smooth_factor:]), np.hstack(self.history_rightx[-self.smooth_factor:]), 2)           
           
