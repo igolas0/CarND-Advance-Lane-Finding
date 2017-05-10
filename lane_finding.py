@@ -42,43 +42,47 @@ class Line():
        #self.counter += 1
        self.leftx, self.lefty, self.rightx, self.righty = self.find_lanes(warped)
 
-       self.left_radius, self.right_radius = self.calc_radius()
+       if self.leftx.size == 0 or self.lefty.size == 0 or self.rightx.size == 0 or self.righty.size == 0: 
+          pass
+       else:    
 
-       if self.sanity_check(warped) == True:
+          self.left_radius, self.right_radius = self.calc_radius()
 
-          self.history_leftx.append(self.leftx)
-          self.history_lefty.append(self.lefty)
-          self.history_rightx.append(self.rightx)
-          self.history_righty.append(self.righty)
+          if self.sanity_check(warped) == True:
+
+             self.history_leftx.append(self.leftx)
+             self.history_lefty.append(self.lefty)
+             self.history_rightx.append(self.rightx)
+             self.history_righty.append(self.righty)
         
-          self.left_fit = np.polyfit(np.hstack(self.history_lefty[-self.smooth_factor:]), np.hstack(self.history_leftx[-self.smooth_factor:]), 2)
-          self.right_fit = np.polyfit(np.hstack(self.history_righty[-self.smooth_factor:]), np.hstack(self.history_rightx[-self.smooth_factor:]), 2)           
+             self.left_fit = np.polyfit(np.hstack(self.history_lefty[-self.smooth_factor:]), np.hstack(self.history_leftx[-self.smooth_factor:]), 2)
+             self.right_fit = np.polyfit(np.hstack(self.history_righty[-self.smooth_factor:]), np.hstack(self.history_rightx[-self.smooth_factor:]), 2)           
           
-          self.left_radius, self.right_radius = self.calc_radius()
-          radius = (self.left_radius + self.right_radius)/2
-          self.radius_history.append(radius)
-          self.radius_curvature = np.average(self.radius_history[-self.smooth_factor:])
+             self.left_radius, self.right_radius = self.calc_radius()
+             radius = (self.left_radius + self.right_radius)/2
+             self.radius_history.append(radius)
+             self.radius_curvature = np.average(self.radius_history[-self.smooth_factor:])
 
-          self.center_pos = self.calc_car_pos(warped)
+             self.center_pos = self.calc_car_pos(warped)
 
-       elif self.left_fit==None or self.right_fit==None:
+          elif self.left_fit==None or self.right_fit==None:
 
-          self.history_leftx.append(self.leftx)
-          self.history_lefty.append(self.lefty)
-          self.history_rightx.append(self.rightx)
-          self.history_righty.append(self.righty)
+             self.history_leftx.append(self.leftx)
+             self.history_lefty.append(self.lefty)
+             self.history_rightx.append(self.rightx)
+             self.history_righty.append(self.righty)
         
-          # Fit a second order polynomial to each
-          self.left_fit = np.polyfit(np.hstack(self.history_lefty[-self.smooth_factor:]), np.hstack(self.history_leftx[-self.smooth_factor:]), 2)
-          self.right_fit = np.polyfit(np.hstack(self.history_righty[-self.smooth_factor:]), np.hstack(self.history_rightx[-self.smooth_factor:]), 2)           
+             # Fit a second order polynomial to each
+             self.left_fit = np.polyfit(np.hstack(self.history_lefty[-self.smooth_factor:]), np.hstack(self.history_leftx[-self.smooth_factor:]), 2)
+             self.right_fit = np.polyfit(np.hstack(self.history_righty[-self.smooth_factor:]), np.hstack(self.history_rightx[-self.smooth_factor:]), 2)           
 
 
-          self.left_radius, self.right_radius = self.calc_radius()
-          radius = (self.left_radius + self.right_radius)/2
-          self.radius_history.append(radius)
-          self.radius_curvature = np.average(self.radius_history[-self.smooth_factor:])
+             self.left_radius, self.right_radius = self.calc_radius()
+             radius = (self.left_radius + self.right_radius)/2
+             self.radius_history.append(radius)
+             self.radius_curvature = np.average(self.radius_history[-self.smooth_factor:])
 
-          self.center_pos = self.calc_car_pos(warped)
+             self.center_pos = self.calc_car_pos(warped)
        return self.left_fit, self.right_fit, self.center_pos, self.radius_curvature
 
     def calc_radius(self):

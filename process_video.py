@@ -231,10 +231,10 @@ def process_img(image):
         return result
 
 
-#project_output = 'solution_harder.mp4'
-#input_video = 'harder_challenge_video.mp4'
-project_output = 'project_solution.mp4'
-input_video = 'project_video.mp4'
+project_output = 'solution_challenge.mp4'
+input_video = 'challenge_video.mp4'
+#project_output = 'project_solution.mp4'
+#input_video = 'project_video.mp4'
 clip1 = VideoFileClip(input_video)
 #new_clip = clip1.subclip(1,15)
 #project_clip = new_clip.fl_image(process_img) #NOTE: this function expects color images!!
