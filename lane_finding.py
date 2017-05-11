@@ -1,70 +1,71 @@
 import numpy as np
 import cv2
 
-#global int counter
-
-## New = gamma * New + (1-gamma) * Old. 0 < gamma < 1.0
-
+ 
 class Line():
 
     def __init__(self, My_ym = 1, My_xm = 1, Mysmooth_factor = 15):
 
         # was line detected in the last iteration?
-
         self.detected = False 
-
+        #useful variables for lane detection
         self.leftx = []
         self.lefty = []
         self.rightx = []
         self.righty = []
+        #history of detections in last frames
         self.history_leftx = []
         self.history_lefty = []
         self.history_rightx = []
         self.history_righty = []
+        #class variable for curvature radius
         self.right_radius = None
         self.left_radius = None
         self.left_fit = None
         self.right_fit = None
+        #number of frame detections to average over
         self.smooth_factor = Mysmooth_factor
-     
+        #parameters for conversions in vertical & horizontal directions
+        #from pixel to physical space     
         self.xm_per_pix = My_xm
         self.ym_per_pix = My_ym
-
         #radius of curvature of the line in m 
         self.radius_curvature =  None
         self.radius_history = []
         #car pos from center of lane in m
         self.center_pos =  None
-        #self.counter =  0
+
+
 
     def main(self, warped):
-
-       #self.counter += 1
+       #call find_lanes() an assign class variables to returned arrays with identified points corresponding to left/right lanes
        self.leftx, self.lefty, self.rightx, self.righty = self.find_lanes(warped)
 
+       #check that identified arrays in find_lanes() are not empty to escape error
        if self.leftx.size == 0 or self.lefty.size == 0 or self.rightx.size == 0 or self.righty.size == 0: 
           pass
        else:    
-
+          #get left and right lane curvatures
           self.left_radius, self.right_radius = self.calc_radius()
-
+          #run sanity check and if detection true/valid append detection to history
           if self.sanity_check(warped) == True:
 
              self.history_leftx.append(self.leftx)
              self.history_lefty.append(self.lefty)
              self.history_rightx.append(self.rightx)
              self.history_righty.append(self.righty)
-        
+             #fit identified lane points to a polynomial of 2nd order 
              self.left_fit = np.polyfit(np.hstack(self.history_lefty[-self.smooth_factor:]), np.hstack(self.history_leftx[-self.smooth_factor:]), 2)
              self.right_fit = np.polyfit(np.hstack(self.history_righty[-self.smooth_factor:]), np.hstack(self.history_rightx[-self.smooth_factor:]), 2)           
           
-             self.left_radius, self.right_radius = self.calc_radius()
+             #self.left_radius, self.right_radius = self.calc_radius()
              radius = (self.left_radius + self.right_radius)/2
              self.radius_history.append(radius)
              self.radius_curvature = np.average(self.radius_history[-self.smooth_factor:])
-
+             #get car position relative to center of lane
              self.center_pos = self.calc_car_pos(warped)
 
+          #if sanity check fails and there are no previus valid detections, save frame detection to history anyway (to escape error)
           elif self.left_fit==None or self.right_fit==None:
 
              self.history_leftx.append(self.leftx)
@@ -77,16 +78,18 @@ class Line():
              self.right_fit = np.polyfit(np.hstack(self.history_righty[-self.smooth_factor:]), np.hstack(self.history_rightx[-self.smooth_factor:]), 2)           
 
 
-             self.left_radius, self.right_radius = self.calc_radius()
+             #self.left_radius, self.right_radius = self.calc_radius()
              radius = (self.left_radius + self.right_radius)/2
              self.radius_history.append(radius)
              self.radius_curvature = np.average(self.radius_history[-self.smooth_factor:])
 
+             #get car position relative to center of lane
              self.center_pos = self.calc_car_pos(warped)
+
        return self.left_fit, self.right_fit, self.center_pos, self.radius_curvature
 
     def calc_radius(self):
-
+       #class method computes left and right lane curvatures
        y_eval = 720
        #y_eval = np.max(ploty)
 
@@ -116,7 +119,7 @@ class Line():
     def sanity_check(self,warped):
 
        self.detected = False
-
+       #fit identified points to polynomial (2nd order) for sanity check purposes
        temp_left_fit = np.polyfit(self.lefty, self.leftx, 2)
        temp_right_fit = np.polyfit(self.righty, self.rightx, 2)           
 
@@ -124,6 +127,7 @@ class Line():
        temp_left_fitx = temp_left_fit[0]*ploty**2 + temp_left_fit[1]*ploty + temp_left_fit[2]
        temp_right_fitx = temp_right_fit[0]*ploty**2 + temp_right_fit[1]*ploty + temp_right_fit[2]
 
+       #check if intercepts of identified lanes are in a given region
        if (200 < temp_left_fitx[-1] < 400) & (900 < temp_right_fitx[-1] < 1100):
 
           self.detected = True
@@ -131,7 +135,7 @@ class Line():
        #if self.left_radius < 2000 and self.right_radius < 2000:
 
        check_radius = self.right_radius/self.left_radius
-
+       #check that left and right lane curvatures do not diverge too much from each other
        if check_radius<0.6 or check_radius>1.4:
           self.detected = False
 
@@ -278,47 +282,3 @@ class Line():
         return leftx, lefty, rightx, righty
 
                                                               
-
-#if counter false detections >10:
-
-#--- > search from scratch:
-
-#else: search using last windows:
-
-#             return leftx, lefty, rightx, righty
-
-                              
-
-#Do Sanity check:
-
- 
-
-#if False take Last Best fit, last center pos and last best Curvature,
-
-#                else WEIGHTED AVERAGE OVER CURRENT AND LAST FITS, CURVATURES (take middle of left and right) and center_pos
-
- 
-
-#def sanity_check:
-
- 
-
-#                self.detected = Faulse
-
- 
-
-#  1.) curvatures similar
-
-#  2.) intercepts in range +- 100 px
-
-#  3.) (if detected/last_detected = True: xvalues from polyfit at y=0 and ymax similar (+-25px max) 
-
- 
-
-#                if 1.)2.)3.)= TRUE: then self.detected = TRUE and SET COUNTER TO ZERO!
-
-#                ELSE counter += 1
-
-               
-
-#                return self.detected
