@@ -190,13 +190,13 @@ And here is  [link to my video result for the challenge video](./solution_challe
 
 The bigger challenges of this project were as in the first project to detect the lanes in different lighting conditions as well as lanes of different colors. Changes of the road pavement color or texture impose a difficult task identifying the lanes.
 
-My pipeline suffices to meet the requirements of the project video, but does not suffice to handle the more difficult conditions met in the challenge videos. Here is further work needed.
+My pipeline works pretty well in the project video and fairly well in the harder challenge videos. Still, further improvements are possible.
 
-The perspective transform needed for the challenge videos is actually different. Maybe the biggest challenge to achieve a general working pipeline is a good dynamically adjusting perspective transform (which adjusts depending on measured curvature, slope or maybe other parameters).
+The perspective transform needed for the challenge videos is actually different. The key to achieve a general working pipeline is a good dynamically adjusting perspective transform (which adjusts depending on measured curvature, slope or maybe other parameters).
 
 Also the thresholds to filter the lane features into a binary image were pretty much hardcoded and it is very difficult to find a static hard-coded solution that works under all lighting/shadow conditions. A more dynamical and adapting function is needed, especially for standard difficult situations like for example too much glare from the sun.
 
-One easy thing to implement that would improve my pipeline would be to perform a weighted numpy averaging of the last detections (with higher weights for the more recent frames).
+One easy thing to implement would be to perform a weighted numpy averaging of the last detections (with higher weights for the more recent frames).
 
 Another thing would be to skip searching from scratch the lanes for the frames where the previus frame lanes were successfully detected and then only fully resetting the detection process after a couple of failed frame detections in a row.
 
